@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import pickle
 import datetime
+import boto3
 
 #Import packages for dashboarding
 from dash import Dash, dash_table, html, dcc, Input, Output
@@ -10,6 +11,12 @@ import plotly.graph_objects as go
 import plotly.express as px
 import plotly.subplots as sp
 
+s3 = boto3.resource('s3')
+
+#df1 = pickle.loads(s3.Bucket('jackyluo').Object('2022Data.pkl').get()['Body'].read())
+#df2 = pickle.loads(s3.Bucket('jackyluo').Object('AircraftData.pkl').get()['Body'].read())
+#df3 = pickle.loads(s3.Bucket('jackyluo').Object('Stations.pkl').get()['Body'].read())
+#df4 = pickle.loads(s3.Bucket('jackyluo').Object('Carriers.pkl').get()['Body'].read())
 with open('./data/2022Data.pkl', 'rb') as f:
     df1 = pickle.load(f)
 with open('./data/AircraftData.pkl', 'rb') as f:
@@ -35,10 +42,9 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, update_title='Loading...', external_stylesheets=external_stylesheets)
 #app.title = '2022 Bureau of Transportation Statistics Airline Data Visualization'
 
-server = app.server
+application = app.server
 
 #Clear the layout and do not display exception till callback gets executed
-app.config.suppress_callback_exceptions = True
 
 app.layout = html.Div([
     html.Div(id='title-changer'),
@@ -110,6 +116,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         op_types = ['General Type', 'ICAO Type']
         op_type = op_types[0] if selected_type == 'Aircraft use General Type Designators' else op_types[1]
         df_aircraft = df.copy()
+        df_aircraft = df_aircraft[df_aircraft['OP_UNIQUE_CARRIER'] == 'airline']
         df_aircraft = df_aircraft[~df_aircraft['Tail'].duplicated(keep='first')]
         df_aircraft['Range'] = None
         df_aircraft['Range'] = df_aircraft.apply(lambda x: 'Short Range' if x['Short Range'] == 1 else x['Range'], axis=1)
@@ -292,6 +299,6 @@ app.clientside_callback(
     Input('main-tab-selector', 'value')
 )
 
-#Run with debug mode active on port 3000
+#Run with debug mode active on port 8080
 if __name__ == '__main__':
-    app.run_server(debug=False, port=8080)
+    application.run_server(debug=True, port=8080)
