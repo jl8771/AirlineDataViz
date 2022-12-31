@@ -13,18 +13,11 @@ import plotly.subplots as sp
 
 s3 = boto3.resource('s3')
 
-#df1 = pickle.loads(s3.Bucket('jackyluo').Object('2022Data.pkl').get()['Body'].read())
-#df2 = pickle.loads(s3.Bucket('jackyluo').Object('AircraftData.pkl').get()['Body'].read())
-#df3 = pickle.loads(s3.Bucket('jackyluo').Object('Stations.pkl').get()['Body'].read())
-#df4 = pickle.loads(s3.Bucket('jackyluo').Object('Carriers.pkl').get()['Body'].read())
-with open('./data/2022Data.pkl', 'rb') as f:
-    df1 = pickle.load(f)
-with open('./data/AircraftData.pkl', 'rb') as f:
-    df2 = pickle.load(f)
-with open('./data/Stations.pkl', 'rb') as f:
-    df3 = pickle.load(f)
-with open('./data/Carriers.pkl', 'rb') as f:
-    df4 = pickle.load(f)
+#df1 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AirlineData.csv', parse_dates=['FL_DATE', 'CRS_DEP_TIME', 'DEP_TIME', 'WHEELS_OFF', 'CRS_ARR_TIME', 'ARR_TIME', 'WHEELS_ON'])
+df1 = pickle.loads(s3.Bucket('jackyluo').Object('AirlineData.pkl').get()['Body'].read())
+df2 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AircraftData.csv')
+df3 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Stations.csv')
+df4 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Carriers.csv', index_col='Code')
     
 data = pd.merge(df1, df2, how='left', left_on='TAIL_NUM', right_on='Tail')
 
@@ -52,7 +45,6 @@ app.layout = html.Div([
         html.H1('2022 Bureau of Transportation Statistics Airline Data Visualization', id='header'),
         html.Div([
             html.Div([
-                html.P('Select a Carrier'),
                 dcc.Dropdown(op_carriers, placeholder='Select a Carrier', id='main-dropdown'),
             ]),
             html.Br(),
@@ -68,7 +60,6 @@ app.layout = html.Div([
             ]),
             html.Br(),
             html.Div([
-                html.P('Select the data you would like to see'),
                 dcc.Tabs(id='main-tab-selector', children=[
                     dcc.Tab(label='Aircraft Data', value='Aircraft Data', id='tab0', disabled=True),
                     dcc.Tab(label='Network Data', value='Network Data', id='tab1', disabled=True),
@@ -116,7 +107,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         op_types = ['General Type', 'ICAO Type']
         op_type = op_types[0] if selected_type == 'Aircraft use General Type Designators' else op_types[1]
         df_aircraft = df.copy()
-        df_aircraft = df_aircraft[df_aircraft['OP_UNIQUE_CARRIER'] == 'airline']
+        df_aircraft = df_aircraft[df_aircraft['OP_UNIQUE_CARRIER'] == airline]
         df_aircraft = df_aircraft[~df_aircraft['Tail'].duplicated(keep='first')]
         df_aircraft['Range'] = None
         df_aircraft['Range'] = df_aircraft.apply(lambda x: 'Short Range' if x['Short Range'] == 1 else x['Range'], axis=1)
@@ -189,27 +180,25 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         df_network = df_network[~df_network[['ORIGIN', 'DEST']].duplicated(keep='first')]
         df_network = pd.merge(df_network, df3, how='inner', left_on='ORIGIN', right_on='ORIGIN')
         df_network = pd.merge(df_network, num_flights, how='inner', left_on='ORIGIN', right_on='ORIGIN')
-        hubs = df_network[~df_network['ORIGIN'].duplicated(keep='first')].sort_values('Number of Flights').tail()['ORIGIN']
+        hubs = df_network[~df_network['ORIGIN'].duplicated(keep='first')].sort_values('Number of Flights').tail(10)['ORIGIN']
         
         output = html.Div([
             html.Div([
                 html.Div([
-                    html.H4(f'Total Domestic Destinations: {total_destinations}'),
-                    html.H5(f'Flights Operated By: {", ".join([str(x) for x in [*operators]])}'),
-                    html.Br(),
-                    html.H5(f'Top 5 Serviced Airports: {hubs.iloc[4]}, {hubs.iloc[3]}, {hubs.iloc[2]}, {hubs.iloc[1]}, {hubs.iloc[0]}'),
+                    html.H3(f'Total Domestic Destinations: {total_destinations}'),
+                    html.H5(f'Flights Operated By: {", ".join([str(x).replace(".","") for x in [*operators]])}'),
+                    html.Hr(),
+                    html.H5(f'Top 10 Serviced Airports: {hubs.iloc[9]}, {hubs.iloc[8]}, {hubs.iloc[7]}, {hubs.iloc[6]}, {hubs.iloc[5]}, {hubs.iloc[4]}, {hubs.iloc[3]}, {hubs.iloc[2]}, {hubs.iloc[1]}, {hubs.iloc[0]}'),
                 ], className='five columns'),
                 html.Div([
-                    html.H5(f'Longest Domestic Route: {longest_flight_pair[0]} - {longest_flight_pair[1]}'),
-                    html.H5(f'Longest Domestic Route Distance: {longest_flight} mi'),
-                    html.H5(f'Longest Domestic Route Flight Time: {longest_flight_airtime} min'),
-                    html.Hr(),
-                    html.H5(f'Shortest Domestic Route: {shortest_flight_pair[0]} - {shortest_flight_pair[1]}'),
-                    html.H5(f'Shortest Domestic Route Distance: {shortest_flight} mi'),
-                    html.H5(f'Shortest Domestic Route Flight Time: {shortest_flight_airtime} min'),
-                    html.Hr(),
-                    html.H5(f'Mean Distance: {mean_distance:.1f} mi'),
-                    html.H5(f'Mean Flight Time: {mean_airtime:.1f} min'),
+                    html.H6(f'Longest Domestic Route: {longest_flight_pair[0]} - {longest_flight_pair[1]}'),
+                    html.H6(f'Longest Domestic Route Distance: {longest_flight} mi'),
+                    html.H6(f'Longest Domestic Route Flight Time: {longest_flight_airtime} min'),
+                    html.H6(f'Shortest Domestic Route: {shortest_flight_pair[0]} - {shortest_flight_pair[1]}'),
+                    html.H6(f'Shortest Domestic Route Distance: {shortest_flight} mi'),
+                    html.H6(f'Shortest Domestic Route Flight Time: {shortest_flight_airtime} min'),
+                    html.H6(f'Mean Distance: {mean_distance:.1f} mi'),
+                    html.H6(f'Mean Flight Time: {mean_airtime:.1f} min'),
                 ], className='five columns'),
             ]),
             html.Div([
@@ -222,13 +211,12 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         ])
     elif tab_selected == 'Performance Data':
         df_routes = df.copy()
-        df_routes = pd.merge(df_routes, df3, how='inner', left_on='ORIGIN', right_on='ORIGIN')
         days_of_week = df_routes.groupby('DAY_OF_WEEK')['ORIGIN'].count().to_frame().reset_index()
         days_of_week['Day Name'] = days_of_week['DAY_OF_WEEK']
         days_of_week.replace({'Day Name': {1:'Monday',2:'Tuesday',3:'Wednesday',4:'Thursday',5:'Friday',6:'Saturday',7:'Sunday',9:'Unknown'}}, inplace=True)
         days_of_week.rename({'DAY_OF_WEEK': 'Day of Week', 'ORIGIN': 'Number of Flights'}, axis=1, inplace=True)
-        daily_avg_delay_0 = df_network.groupby('FL_DATE')['ARR_DELAY'].mean().to_frame().reset_index()
-        daily_avg_delay_1 = df_network.groupby('FL_DATE')['DEP_DELAY'].mean().to_frame().reset_index()
+        daily_avg_delay_0 = df_routes.groupby('FL_DATE')['ARR_DELAY'].mean().to_frame().reset_index()
+        daily_avg_delay_1 = df_routes.groupby('FL_DATE')['DEP_DELAY'].mean().to_frame().reset_index()
         daily_avg_delay = pd.merge(daily_avg_delay_0, daily_avg_delay_1, how='inner', left_on='FL_DATE', right_on='FL_DATE')
         dep_delay = df_routes['DEP_DELAY'].mean()
         arr_delay = df_routes['ARR_DELAY'].mean()
@@ -266,7 +254,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
                     html.H5(f'Total Delay Caused by {delays[3][2]}: {delays[3][0]} min ({delays[3][1]:.2f}% of delays)'),
                     html.H5(f'Total Delay Caused by {delays[4][2]}: {delays[4][0]} min ({delays[4][1]:.2f}% of delays)'),
                 ], className='six columns'),
-            ]),
+            ], className='twelve columns'),
             html.Div([
                 html.Div([
                     dcc.Graph(figure=px.line(daily_avg_delay, x='FL_DATE', y=['ARR_DELAY', 'DEP_DELAY'], markers=True))
@@ -301,4 +289,4 @@ app.clientside_callback(
 
 #Run with debug mode active on port 8080
 if __name__ == '__main__':
-    application.run_server(debug=True, port=8080)
+    application.run_server(debug=False, port=8080)
