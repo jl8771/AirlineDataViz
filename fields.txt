@@ -1,0 +1,44 @@
+Year - Year
+
+Month - Month
+DayofMonth - Day of Month
+DayOfWeek - Day of Month
+FlightDate - Flight Date (yyyymmdd)
+
+Marketing_Airline_Network - Unique Marketing Carrier Code. When the same code has been used by multiple carriers, a numeric suffix is used for earlier users, for example, PA, PA(1), PA(2). Use this field for analysis across a range of years.
+Flight_Number_Marketing_Airline - Flight Number
+Operating_Airline - Unique Carrier Code. When the same code has been used by multiple carriers, a numeric suffix is used for earlier users, for example, PA, PA(1), PA(2). Use this field for analysis across a range of years.
+Tail_Number - Tail Number
+Flight_Number_Operating_Airline - Flight Number
+
+Origin - Origin Airport
+
+Dest - Destination Airport
+
+CRSDepTime - CRS Departure Time (local time: hhmm)
+DepTime - Actual Departure Time (local time: hhmm)
+DepDelay - Difference in minutes between scheduled and actual departure time. Early departures show negative numbers.
+TaxiOut - Taxi Out Time, in Minutes
+WheelsOff - Wheels Off Time (local time: hhmm)
+
+WheelsOn - Wheels On Time (local time: hhmm)
+TaxiIn - Taxi In Time, in Minutes
+CRSArrTime - CRS Arrival Time (local time: hhmm)
+ArrTime - Actual Arrival Time (local time: hhmm)
+ArrDelay - Difference in minutes between scheduled and actual arrival time. Early arrivals show negative numbers.
+
+Cancelled - Cancelled Flight Indicator (1=Yes)
+CancellationCode - Specifies The Reason For Cancellation
+Diverted - Diverted Flight Indicator (1=Yes)
+
+CRSElapsedTime - CRS Elapsed Time of Flight, in Minutes
+ActualElapsedTime - Elapsed Time of Flight, in Minutes
+AirTime - Flight Time, in Minutes
+Flights - Number of Flights
+Distance - Distance between airports (miles)
+
+CarrierDelay - Carrier Delay, in Minutes
+WeatherDelay - Weather Delay, in Minutes
+NASDelay - National Air System Delay, in Minutes
+SecurityDelay - Security Delay, in Minutes
+LateAircraftDelay - Late Aircraft Delay, in Minutes
