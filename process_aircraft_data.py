@@ -268,6 +268,9 @@ df2['General Type'] = df2['ICAO Type'].apply(convert_ICAO_general_type)
 df2 = df2[['Tail', 'Year', 'Manufacturer', 'Model', 'ICAO Type', 'General Type', 'Narrow-body', 'Wide-body', 'Short Range', 'Medium Range', 'Long Range']]
 print('General Type Converted.')
 
+#Fix Allegiant Air registrations
+df2['Tail'] = df2['Tail'].str.replace(r'(\d{3}NV)', r'N\1', regex=True)
+
 #Sort the dataframe and reset the index
 df2.sort_values(by=['Manufacturer', 'Model', 'Year', 'Tail'], ascending=True, inplace=True)
 df2.reset_index(inplace=True, drop=True)
