@@ -8,7 +8,7 @@ import pickle
 import datetime
 
 #Read data from csv, parse flight date column as np.datetime
-df1 = pd.read_csv('./data/2022Data.csv', parse_dates=['FL_DATE'])
+df1 = pd.read_csv('./data/AirlineData.csv', parse_dates=['FL_DATE'])
 print('Data Read.')
 
 #Set "hhmm" data as str type for parsing, others as int
@@ -87,11 +87,11 @@ df1 = df1.apply(lambda x: np_conv_time(x), axis=1)
 print('Dates Parsed.')
 
 #Save data to csv
-df1.to_csv('AirlineData.csv', index=False)
+df1.to_csv('./data/AirlineData.csv', index=False)
 print('CSV Saved.')
 
 #Pickle dataframe for faster loading
-with open('./data/2022Data.pkl', 'wb') as f:
+with open('./data/AirlineData.pkl', 'wb') as f:
     pickle.dump(df1, f)
 print('Pickle Saved.')
 

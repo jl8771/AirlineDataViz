@@ -10,7 +10,7 @@ import html5lib
 import re
 
 #Read data from csv, using only the Tail Number column
-df1 = pd.read_csv('./data/2022Data.csv', usecols=['TAIL_NUM'])
+df1 = pd.read_csv('./data/AirlineData.csv', usecols=['TAIL_NUM'])
 print('Data Read.')
 
 #Get unique list of aircraft by N-number
@@ -276,7 +276,7 @@ df2.sort_values(by=['Manufacturer', 'Model', 'Year', 'Tail'], ascending=True, in
 df2.reset_index(inplace=True, drop=True)
 
 #Save data to csv
-df2.to_csv('AircraftData.csv', index=False)
+df2.to_csv('./data/AircraftData.csv', index=False)
 print('CSV Saved.')
 
 #Pickle dataframe for faster loading
