@@ -14,6 +14,7 @@ import plotly.subplots as sp
 #Set boto3 resource to access s3 buckets where the largest data is stored in pkl format
 s3 = boto3.resource('s3')
 
+#TODO: Filter relevant columns using usecols to reduce memory usage
 #Using pickle load from s3 as it parses much faster than reading csv
 df1 = pickle.loads(s3.Bucket('jackyluo').Object('AirlineData.pkl').get()['Body'].read())
 #Read remaining csvs
@@ -42,6 +43,7 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, update_title='Loading...', external_stylesheets=external_stylesheets)
 application = app.server
 
+#TODO: Add dcc.loading element to complement title change
 #Set initial layout, including input elements and placeholder divs
 app.layout = html.Div([
     html.Div(id='title-changer'),
@@ -54,7 +56,7 @@ app.layout = html.Div([
             html.Br(),
             html.Div([
                 html.P('Select a Date Range (by month)'),
-                dcc.RangeSlider(1, 9, 1, value=[1,9], id='main-date-selector')
+                dcc.RangeSlider(1, 10, 1, value=[1,10], id='main-date-selector')
             ]),
             html.Br(),
             html.Div([
@@ -74,6 +76,8 @@ app.layout = html.Div([
         html.Div(id='output-wrapper'),
     ], style={'display':'block'})
 ])
+
+#TODO: Add/edit callback for loading
 
 #Callback 1 for disabling tabs until carrier has been selected
 @app.callback(
