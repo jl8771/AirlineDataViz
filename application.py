@@ -18,8 +18,16 @@ s3 = boto3.resource('s3')
 #Using pickle load from s3 as it parses much faster than reading csv
 df1 = pickle.loads(s3.Bucket('jackyluo').Object('AirlineDataSmall.pkl').get()['Body'].read())
 #Read remaining csvs
-df2 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AircraftData.csv')
-df3 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Stations.csv')
+df2 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AircraftData.csv',
+                  usecols=['Tail', 'Year', 'Manufacturer', 'ICAO Type', 'General Type',
+                            'Narrow-body', 'Wide-body', 'Short Range', 'Medium Range', 'Long Range'],
+                  dtype={'Year': np.int16,'Narrow-body': np.int8, 'Wide-body': np.int8,
+                         'Short Range': np.int8, 'Medium Range': np.int8, 'Long Range': np.int8,
+                         'Manufacturer': 'category','ICAO Type': 'category', 'General Type': 'category'})
+df3 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Stations.csv',
+                  usecols=['ORIGIN', 'ORIGIN_CITY_NAME', 'ORIGIN_STATE_ABR', 'ORIGIN_STATE_NM', 'NAME',
+                           'LATITUDE', 'LONGITUDE', 'ELEVATION', 'ICAO', 'IATA', 'FAA'],
+                  dtype={'LATITUDE': np.float32, 'LONGITUDE': np.float32, 'ELEVATION': np.float32})
 df4 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Carriers.csv', index_col='Code')
     
 #Merge airline data with aircraft data to add aircraft information
@@ -169,7 +177,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         #Perform the merge to have a single dataframe with aircraft type, number of aircraft of given type, and average age of given type
         df_fleet = pd.merge(df_fleet_0, df_fleet_1, how='inner', left_on=op_type, right_on=op_type)
         #Initially sort by descending number of aircraft to have most common aircraft at the top and least common aircraft at the bottom
-        df_fleet = df_fleet.sort_values(by=['Number of Aircraft', op_type], ascending=False)
+        df_fleet = df_fleet.sort_values(by=['Number of Aircraft', op_type], ascending=False).dropna()
         #Get total fleet size by summing number of aircraft of each type
         total_fleet_size = df_fleet['Number of Aircraft'].sum()
         
