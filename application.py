@@ -16,7 +16,7 @@ s3 = boto3.resource('s3')
 
 #TODO: Filter relevant columns using usecols to reduce memory usage
 #Using pickle load from s3 as it parses much faster than reading csv
-df1 = pickle.loads(s3.Bucket('jackyluo').Object('AirlineData.pkl').get()['Body'].read())
+df1 = pickle.loads(s3.Bucket('jackyluo').Object('AirlineDataSmall.pkl').get()['Body'].read())
 #Read remaining csvs
 df2 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AircraftData.csv')
 df3 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Stations.csv')
@@ -112,7 +112,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
 
     Args:
         airline (str): Selected carrier from dropdown input.
-        date_range (list of int): Selected date range in months, min and max val from rangeslider input. Default [1,9] based on currently available data.
+        date_range (list of int): Selected date range in months, min and max val from rangeslider input. Default [1,12].
         tab_selected (str): Selected type of data to be shown from tabs input. 
         selected_type (str): Selected operating mode for aircraft type from radioitems input. Default "General Type".
 
@@ -138,34 +138,31 @@ def update_airline(airline, date_range, tab_selected, selected_type):
     #Initialize output as empty div
     output = html.Div()
     
-    #TODO: Try using df for each tab type rather than create copies to reduce memory footprint. Test if any effect on loading speed for each tab.
     #Output relevant aircraft data if aircraft data tab is selected
     if tab_selected == 'Aircraft Data':
         #Set operating type based on selected operating type
         op_types = ['General Type', 'ICAO Type']
         op_type = op_types[0] if selected_type == 'Aircraft use General Type Designators' else op_types[1]
-        #Create a copy of the data
-        df_aircraft = df.copy()
         #Filter by operating carrier rather than marketing carrier to prevent overlapping fleet information from regional carriers.
         #This also allows the fleet data to be compared to other fleet tracking websites for consistency.
-        df_aircraft = df_aircraft[df_aircraft['OP_UNIQUE_CARRIER'] == airline]
+        df = df[df['OP_UNIQUE_CARRIER'] == airline]
         #Create a dataframe of unique N-numbers, which uniquely identify aircraft
-        df_aircraft = df_aircraft[~df_aircraft['Tail'].duplicated(keep='first')]
-        df_aircraft['Range'] = None
+        df = df[~df['Tail'].duplicated(keep='first')]
+        df['Range'] = None
         #Create a single column for range of aircraft
-        df_aircraft['Range'] = df_aircraft.apply(lambda x: 'Short Range' if x['Short Range'] == 1 else x['Range'], axis=1)
-        df_aircraft['Range'] = df_aircraft.apply(lambda x: 'Medium Range' if x['Medium Range'] == 1 else x['Range'], axis=1)
-        df_aircraft['Range'] = df_aircraft.apply(lambda x: 'Long Range' if x['Long Range'] == 1 else x['Range'], axis=1)
+        df['Range'] = df.apply(lambda x: 'Short Range' if x['Short Range'] == 1 else x['Range'], axis=1)
+        df['Range'] = df.apply(lambda x: 'Medium Range' if x['Medium Range'] == 1 else x['Range'], axis=1)
+        df['Range'] = df.apply(lambda x: 'Long Range' if x['Long Range'] == 1 else x['Range'], axis=1)
         #Create a single column for wide or narrowbody aircraft
-        df_aircraft['Width'] = df_aircraft.apply(lambda x: 'Wide-body' if x['Wide-body'] == 1 else 'Narrow-body', axis=1)
-        df_aircraft = df_aircraft[['Range', 'Width', 'Manufacturer', 'ICAO Type', 'General Type', 'Tail', 'Year']]
+        df['Width'] = df.apply(lambda x: 'Wide-body' if x['Wide-body'] == 1 else 'Narrow-body', axis=1)
+        df = df[['Range', 'Width', 'Manufacturer', 'ICAO Type', 'General Type', 'Tail', 'Year']]
         #Create a counter column for building fleet size
-        df_aircraft['Count'] = 1
+        df['Count'] = 1
 
         #Group aircraft by type to determine number of aircraft of each type as a dataframe, rename the appropriate column and reset index for merge
-        df_fleet_0 = df_aircraft.groupby(op_type)[op_type].count().to_frame().rename({op_type: 'Number of Aircraft'}, axis=1).reset_index()
+        df_fleet_0 = df.groupby(op_type)[op_type].count().to_frame().rename({op_type: 'Number of Aircraft'}, axis=1).reset_index()
         #Group aircraft by type to determine average age of aircraft of each type as a dataframe, rename the appropriate column and reset index for merge
-        df_fleet_1 = df_aircraft.groupby(op_type)['Year'].mean().to_frame().rename({'Year': 'Average Age'}, axis=1).reset_index()
+        df_fleet_1 = df.groupby(op_type)['Year'].mean().to_frame().rename({'Year': 'Average Age'}, axis=1).reset_index()
         #Calculate the age using current datetime, fix float precision
         df_fleet_1['Average Age'] = float(datetime.datetime.now().year) - df_fleet_1['Average Age']
         df_fleet_1['Average Age'] = df_fleet_1['Average Age'].round(2)
@@ -194,58 +191,56 @@ def update_airline(airline, date_range, tab_selected, selected_type):
                     )
                 ], className='four columns'),
                 html.Div([
-                    dcc.Graph(figure=px.histogram(df_aircraft,x=op_type).update_xaxes(categoryorder='total ascending')),
+                    dcc.Graph(figure=px.histogram(df,x=op_type).update_xaxes(categoryorder='total ascending')),
                 ], className='eight columns'),
             ]),
             html.Div([
                 html.Div([
                     html.Div([
-                        dcc.Graph(figure=px.pie(df_aircraft, names='Width', values='Count'))
+                        dcc.Graph(figure=px.pie(df, names='Width', values='Count'))
                     ], className='four columns'),
                     html.Div([
-                        dcc.Graph(figure=px.pie(df_aircraft, names='Range', values='Count'))
+                        dcc.Graph(figure=px.pie(df, names='Range', values='Count'))
                     ], className='four columns'),
                     html.Div([
-                        dcc.Graph(figure=px.pie(df_aircraft, names='Manufacturer', values='Count'))
+                        dcc.Graph(figure=px.pie(df, names='Manufacturer', values='Count'))
                     ], className='four columns'),
                 ]),
             ]),
         ])
     #Output relevant network data if network data tab is selected
     elif tab_selected == 'Network Data':
-        #Create a copy of the data
-        df_network = df.copy()
         #Reindex data to make data easier to work with
-        df_network = df_network.reset_index()
+        df = df.reset_index()
         #Get list of unique operators, convert to names instead of unique codes
-        operators = df_network['OP_UNIQUE_CARRIER'].unique()
+        operators = df['OP_UNIQUE_CARRIER'].unique()
         operators = [carrier_code_to_name_converter[x] for x in operators]
         
         #Get number of flights by each origin airport location
-        num_flights = df_network.groupby('ORIGIN')['ORIGIN'].count().to_frame().rename({'ORIGIN': 'Number of Flights'}, axis=1).reset_index()
+        num_flights = df.groupby('ORIGIN')['ORIGIN'].count().to_frame().rename({'ORIGIN': 'Number of Flights'}, axis=1).reset_index()
         #Find the distance of longest flight, get index of longest flight to get other data such as airtime, origin and destination
-        longest_flight = df_network['DISTANCE'].max()
-        longest_flight_idx = df_network['DISTANCE'].idxmax()
-        longest_flight_airtime = int(df_network['AIR_TIME'].iloc[longest_flight_idx])
-        longest_flight_pair = (df_network['ORIGIN'].iloc[longest_flight_idx], df_network['DEST'].iloc[longest_flight_idx])
+        longest_flight = df['DISTANCE'].max()
+        longest_flight_idx = df['DISTANCE'].idxmax()
+        longest_flight_airtime = int(df['AIR_TIME'].iloc[longest_flight_idx])
+        longest_flight_pair = (df['ORIGIN'].iloc[longest_flight_idx], df['DEST'].iloc[longest_flight_idx])
         #Find the mean distance and airtime as comparison for shortest/longest flights
-        mean_distance = df_network['DISTANCE'].mean()
-        mean_airtime = df_network['AIR_TIME'].mean()
+        mean_distance = df['DISTANCE'].mean()
+        mean_airtime = df['AIR_TIME'].mean()
         #Find the distance of shortest flight, get index of shortest flight to get other data such as airtime, origin and destination
-        shortest_flight = df_network['DISTANCE'].min()
-        shortest_flight_idx = df_network['DISTANCE'].idxmin()
-        shortest_flight_airtime = int(df_network['AIR_TIME'].iloc[shortest_flight_idx])
-        shortest_flight_pair = (df_network['ORIGIN'].iloc[shortest_flight_idx], df_network['DEST'].iloc[shortest_flight_idx])
+        shortest_flight = df['DISTANCE'].min()
+        shortest_flight_idx = df['DISTANCE'].idxmin()
+        shortest_flight_airtime = int(df['AIR_TIME'].iloc[shortest_flight_idx])
+        shortest_flight_pair = (df['ORIGIN'].iloc[shortest_flight_idx], df['DEST'].iloc[shortest_flight_idx])
         #Get number of total unique destinations
-        total_destinations = df_network['DEST'].nunique()
+        total_destinations = df['DEST'].nunique()
         #Filter data by unique origin/destination pairs for mapping
-        df_network = df_network[~df_network[['ORIGIN', 'DEST']].duplicated(keep='first')]
+        df = df[~df[['ORIGIN', 'DEST']].duplicated(keep='first')]
         #Merge origin/destination pair data with airport names along with longitude/latitude/elevation data
-        df_network = pd.merge(df_network, df3, how='inner', left_on='ORIGIN', right_on='ORIGIN')
+        df = pd.merge(df, df3, how='inner', left_on='ORIGIN', right_on='ORIGIN')
         #Merge origin/destination pair data with number of flights from each destination calculated earlier
-        df_network = pd.merge(df_network, num_flights, how='inner', left_on='ORIGIN', right_on='ORIGIN')
+        df = pd.merge(df, num_flights, how='inner', left_on='ORIGIN', right_on='ORIGIN')
         #Get top 10 airports by number of outgoing flights, should represent hub airports
-        hubs = df_network[~df_network['ORIGIN'].duplicated(keep='first')].sort_values('Number of Flights').tail(10)['ORIGIN']
+        hubs = df[~df['ORIGIN'].duplicated(keep='first')].sort_values('Number of Flights').tail(10)['ORIGIN']
         
         #TODO: Reformat text elements to be table-like with descriptive text as small header, numerical value as large table element for cleaner look
         #TODO: Figure out px.line_mapbox to create route map that includes lines between each origin/destination pair. Currently not clean, incompatible with px.scatter_mapbox
@@ -271,7 +266,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
             ]),
             html.Div([
                 html.Div([
-                    dcc.Graph(figure=px.scatter_mapbox(df_network, lat='LATITUDE', lon='LONGITUDE', size='Number of Flights',
+                    dcc.Graph(figure=px.scatter_mapbox(df, lat='LATITUDE', lon='LONGITUDE', size='Number of Flights',
                                                         hover_name='NAME', hover_data=['ELEVATION', 'ICAO', 'FAA', 'IATA'], size_max=75,
                                                         zoom=4, mapbox_style='carto-positron'),style={'width': '100%', 'height': '90vh'})
                 ]),
@@ -279,26 +274,24 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         ])
     #Output relevant performance data if performance data tab is selected
     elif tab_selected == 'Performance Data':
-        #Create a copy of the data
-        df_routes = df.copy()
         #Create a dataframe with the average arrival delay and departure delay by day of year
-        daily_avg_delay_0 = df_routes.groupby('FL_DATE')['ARR_DELAY'].mean().to_frame().reset_index()
-        daily_avg_delay_1 = df_routes.groupby('FL_DATE')['DEP_DELAY'].mean().to_frame().reset_index()
+        daily_avg_delay_0 = df.groupby('FL_DATE')['ARR_DELAY'].mean().to_frame().reset_index()
+        daily_avg_delay_1 = df.groupby('FL_DATE')['DEP_DELAY'].mean().to_frame().reset_index()
         daily_avg_delay = pd.merge(daily_avg_delay_0, daily_avg_delay_1, how='inner', left_on='FL_DATE', right_on='FL_DATE')
         #Get average arrival delay and departure delay for all routes by the selected carrier
-        dep_delay = df_routes['DEP_DELAY'].mean()
-        arr_delay = df_routes['ARR_DELAY'].mean()
+        dep_delay = df['DEP_DELAY'].mean()
+        arr_delay = df['ARR_DELAY'].mean()
         #Get percentage of flights where flights are on time or early (delay <= 0)
-        ontime_arr = df_routes[df_routes['ARR_DELAY'] <= 0].shape[0] / df_routes.shape[0] * 100
-        ontime_dep = df_routes[df_routes['DEP_DELAY'] <= 0].shape[0] / df_routes.shape[0] * 100
+        ontime_arr = df[df['ARR_DELAY'] <= 0].shape[0] / df.shape[0] * 100
+        ontime_dep = df[df['DEP_DELAY'] <= 0].shape[0] / df.shape[0] * 100
         #Create a list of delay causes
         delays = []
         #Sum number of minutes of delay by each cause
-        delay0 = df_routes['CARRIER_DELAY'].sum()
-        delay1 = df_routes['WEATHER_DELAY'].sum()
-        delay2 = df_routes['NAS_DELAY'].sum()
-        delay3 = df_routes['SECURITY_DELAY'].sum()
-        delay4 = df_routes['LATE_AIRCRAFT_DELAY'].sum()
+        delay0 = df['CARRIER_DELAY'].sum()
+        delay1 = df['WEATHER_DELAY'].sum()
+        delay2 = df['NAS_DELAY'].sum()
+        delay3 = df['SECURITY_DELAY'].sum()
+        delay4 = df['LATE_AIRCRAFT_DELAY'].sum()
         #Sum total delay by carrier
         total_delay = delay0 + delay1 + delay2 + delay3 + delay4
         #Append each cause to list as tuple along with number of minutes of delay, and percentage of total delay
@@ -315,7 +308,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         output = html.Div([
             html.Div([
                 html.Div([
-                    html.H5(f'Number of Flights: {df_routes.shape[0]}'),
+                    html.H5(f'Number of Flights: {df.shape[0]}'),
                     html.H5(f'Average Arrival Delay: {arr_delay:.0f} min'),
                     html.H5(f'Average Departure Delay: {dep_delay:.0f} min'),
                     html.H5(f'Percentage of Flights Arriving Early/On-Time: {ontime_arr:.2f}%'),
