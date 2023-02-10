@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.subplots as sp
 
 #Read data from S3
-df1 = df = pd.read_parquet('https://jackyluo.s3.amazonaws.com/AirlineDataSmall.parquet.gzip')
+df1 = pd.read_parquet('https://jackyluo.s3.amazonaws.com/AirlineDataSmall.parquet.gzip')
 df2 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AircraftData.csv',
                   usecols=['Tail', 'Year', 'Manufacturer', 'ICAO Type', 'General Type',
                             'Narrow-body', 'Wide-body', 'Short Range', 'Medium Range', 'Long Range'],
@@ -36,6 +36,10 @@ carrier_type = carrier_types[0]
 op_carriers = list(df1[carrier_type].unique())
 op_carriers = [carrier_code_to_name_converter[x] + ' (' + x + ')' for x in op_carriers]
 op_carriers = sorted(op_carriers)
+
+#Function to convert minutes to day(s)/hour(s)/minute(s) format
+def convert_time(minutes):
+    return  f'{minutes//24//60:.0f}d {minutes//60%24:.0f}h {minutes%60:.0f}m'
 
 #Stylesheet
 external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
@@ -147,6 +151,8 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         #Filter by operating carrier rather than marketing carrier to prevent overlapping fleet information from regional carriers.
         #This also allows the fleet data to be compared to other fleet tracking websites for consistency.
         df = df[df['OP_UNIQUE_CARRIER'] == airline]
+        #Remove cancelled flights
+        df = df[df['CANCELLED'] == 0]
         #Create a dataframe of unique N-numbers, which uniquely identify aircraft
         df = df[~df['Tail'].duplicated(keep='first')]
         df['Range'] = None
@@ -211,6 +217,8 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         ])
     #Output relevant network data if network data tab is selected
     elif tab_selected == 'Network Data':
+        #Remove cancelled flights
+        df = df[df['CANCELLED'] == 0]
         #Reindex data to make data easier to work with
         df = df.reset_index()
         #Get list of unique operators, convert to names instead of unique codes
@@ -275,6 +283,10 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         ])
     #Output relevant performance data if performance data tab is selected
     elif tab_selected == 'Performance Data':
+        #Count number of cancelled flights, remove cancelled flights from dataframe
+        cancellations = df[df['CANCELLED'] > 0]['CANCELLED'].count()
+        df = df[df['CANCELLED'] == 0]
+        
         #Create a dataframe with the average arrival delay and departure delay by day of year
         daily_avg_delay_0 = df.groupby('FL_DATE')['ARR_DELAY'].mean().to_frame().reset_index()
         daily_avg_delay_1 = df.groupby('FL_DATE')['DEP_DELAY'].mean().to_frame().reset_index()
@@ -310,17 +322,19 @@ def update_airline(airline, date_range, tab_selected, selected_type):
             html.Div([
                 html.Div([
                     html.H5(f'Number of Flights: {df.shape[0]}'),
+                    html.H5(f'Number of Cancelled Flights: {cancellations} ({cancellations/df.shape[0]*100:.2f}%)'),
                     html.H5(f'Average Arrival Delay: {arr_delay:.0f} min'),
                     html.H5(f'Average Departure Delay: {dep_delay:.0f} min'),
                     html.H5(f'Percentage of Flights Arriving Early/On-Time: {ontime_arr:.2f}%'),
                     html.H5(f'Percentage of Flights Departing Early/On-Time: {ontime_dep:.2f}%'),
                 ],className='six columns'),
                 html.Div([
-                    html.H5(f'Total Delay Caused by {delays[0][2]}: {delays[0][0]} min ({delays[0][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[1][2]}: {delays[1][0]} min ({delays[1][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[2][2]}: {delays[2][0]} min ({delays[2][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[3][2]}: {delays[3][0]} min ({delays[3][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[4][2]}: {delays[4][0]} min ({delays[4][1]:.2f}% of delays)'),
+                    html.H5(f'Total Delay: {convert_time(total_delay)}'),
+                    html.H5(f'Total Delay Caused by {delays[0][2]}: {convert_time(delays[0][0])} ({delays[0][1]:.2f}% of delays)'),
+                    html.H5(f'Total Delay Caused by {delays[1][2]}: {convert_time(delays[1][0])} ({delays[1][1]:.2f}% of delays)'),
+                    html.H5(f'Total Delay Caused by {delays[2][2]}: {convert_time(delays[2][0])} ({delays[2][1]:.2f}% of delays)'),
+                    html.H5(f'Total Delay Caused by {delays[3][2]}: {convert_time(delays[3][0])} ({delays[3][1]:.2f}% of delays)'),
+                    html.H5(f'Total Delay Caused by {delays[4][2]}: {convert_time(delays[4][0])} ({delays[4][1]:.2f}% of delays)'),
                 ], className='six columns'),
             ], className='twelve columns'),
             html.Div([
