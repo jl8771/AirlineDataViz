@@ -1,9 +1,7 @@
 #Import packages for data & data manipulation
 import pandas as pd
 import numpy as np
-import pickle
 import datetime
-import boto3
 
 #Import packages for building the dashbaord
 from dash import Dash, dash_table, html, dcc, Input, Output
@@ -11,13 +9,8 @@ import plotly.graph_objects as go
 import plotly.express as px
 import plotly.subplots as sp
 
-#Set boto3 resource to access s3 buckets where the largest data is stored in pkl format
-s3 = boto3.resource('s3')
-
-#TODO: Filter relevant columns using usecols to reduce memory usage
-#Using pickle load from s3 as it parses much faster than reading csv
-df1 = pickle.loads(s3.Bucket('jackyluo').Object('AirlineDataSmall.pkl').get()['Body'].read())
-#Read remaining csvs
+#Read data from S3
+df1 = df = pd.read_parquet('https://jackyluo.s3.amazonaws.com/AirlineDataSmall.parquet.gzip')
 df2 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AircraftData.csv',
                   usecols=['Tail', 'Year', 'Manufacturer', 'ICAO Type', 'General Type',
                             'Narrow-body', 'Wide-body', 'Short Range', 'Medium Range', 'Long Range'],
@@ -64,7 +57,7 @@ app.layout = html.Div([
             html.Br(),
             html.Div([
                 html.P('Select a Date Range (by month)'),
-                dcc.RangeSlider(1, 10, 1, value=[1,10], id='main-date-selector')
+                dcc.RangeSlider(1, 11, 1, value=[1,11], id='main-date-selector')
             ]),
             html.Br(),
             html.Div([
