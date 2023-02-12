@@ -294,9 +294,9 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         #Get average arrival delay and departure delay for all routes by the selected carrier
         dep_delay = df['DEP_DELAY'].mean()
         arr_delay = df['ARR_DELAY'].mean()
-        #Get percentage of flights where flights are on time or early (delay <= 0)
-        ontime_arr = df[df['ARR_DELAY'] <= 0].shape[0] / df.shape[0] * 100
-        ontime_dep = df[df['DEP_DELAY'] <= 0].shape[0] / df.shape[0] * 100
+        #Get percentage of flights where flights are on time or early (delay <= 15)
+        ontime_arr = df[df['ARR_DELAY'] <= 15].shape[0] / df.shape[0] * 100
+        ontime_dep = df[df['DEP_DELAY'] <= 15].shape[0] / df.shape[0] * 100
         #Create a list of delay causes
         delays = []
         #Sum number of minutes of delay by each cause

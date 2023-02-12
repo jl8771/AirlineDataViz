@@ -3,7 +3,6 @@
 #Link: https://www.transtats.bts.gov/
 import pandas as pd
 import numpy as np
-import pickle
 import requests
 from bs4 import BeautifulSoup
 import html5lib
@@ -280,8 +279,11 @@ df2.to_csv('./data/AircraftData.csv', index=False)
 print('CSV Saved.')
 
 #Pickle dataframe for faster loading
-with open('./data/AircraftData.pkl', 'wb') as f:
-    pickle.dump(df2, f)
+df2.to_pickle('./data/AircraftData.pkl')
 print('Pickle Saved.')
+
+#Parquet dataframe for faster loading
+df2.to_parquet('./data/AircraftData.parquet.gzip', compression='gzip')
+print('Parquet Saved.')
 
 print('Processing Complete!')

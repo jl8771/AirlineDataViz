@@ -4,7 +4,6 @@
 #Link: https://www.transtats.bts.gov/
 import pandas as pd
 import numpy as np
-import pickle
 import datetime
 
 #Read data from csv, parse flight date column as np.datetime
@@ -91,8 +90,37 @@ df1.to_csv('./data/AirlineData.csv', index=False)
 print('CSV Saved.')
 
 #Pickle dataframe for faster loading
-with open('./data/AirlineData.pkl', 'wb') as f:
-    pickle.dump(df1, f)
+df1.to_pickle('./data/AirlineData.pkl')
 print('Pickle Saved.')
+
+#Parquet dataframe for faster loading
+df1.to_parquet('./data/AirlineData.parquet.gzip', compression='gzip')
+print('Parquet Saved.')
+
+#Create smaller dataframe for use with dash
+#Filter columns
+df1 = df1[['FL_DATE', 'MKT_UNIQUE_CARRIER', 'MKT_CARRIER_FL_NUM', 'OP_UNIQUE_CARRIER', 'OP_CARRIER_FL_NUM',
+           'TAIL_NUM', 'ORIGIN', 'DEST', 'DEP_DELAY', 'ARR_DELAY', 'AIR_TIME', 'DISTANCE',
+           'CARRIER_DELAY', 'WEATHER_DELAY', 'NAS_DELAY', 'SECURITY_DELAY', 'LATE_AIRCRAFT_DELAY', 'CANCELLED']]
+#Convert categories
+cols = ['MKT_CARRIER_FL_NUM', 'OP_CARRIER_FL_NUM', 'DEP_DELAY', 'ARR_DELAY', 'AIR_TIME', 'DISTANCE', 'CARRIER_DELAY', 'WEATHER_DELAY', 'NAS_DELAY', 'SECURITY_DELAY', 'LATE_AIRCRAFT_DELAY']
+for col in cols:
+    df1[col] = df1[col].astype(np.int16)
+cols = ['MKT_UNIQUE_CARRIER', 'OP_UNIQUE_CARRIER', 'ORIGIN', 'DEST']
+for col in cols:
+    df1[col] = df1[col].astype('category')
+df1['CANCELLED'] = df1['CANCELLED'].astype('int8')
+
+#Save data to csv
+df1.to_csv('./data/AirlineDataSmall.csv', index=False)
+print('Small CSV Saved.')
+
+#Pickle dataframe for faster loading
+df1.to_pickle('./data/AirlineDataSmall.pkl')
+print('Small Pickle Saved.')
+
+#Parquet dataframe for faster loading
+df1.to_parquet('./data/AirlineDataSmall.parquet.gzip', compression='gzip')
+print('Small Parquet Saved.')
 
 print('Processing Complete!')
