@@ -180,6 +180,9 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         #Get total fleet size by summing number of aircraft of each type
         total_fleet_size = df_fleet['Number of Aircraft'].sum()
         
+        #Remerge data
+        df = pd.merge(df, df_fleet, how='left', left_on=op_type, right_on=op_type)
+        
         #Create output element, including sortable datatable and plots. Use class names to fix element widths based on stylesheet
         output = html.Div([
             html.Div([
@@ -198,7 +201,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
                     )
                 ], className='four columns'),
                 html.Div([
-                    dcc.Graph(figure=px.histogram(df,x=op_type).update_xaxes(categoryorder='total ascending')),
+                    dcc.Graph(figure=px.bar(df,x=op_type, y='Number of Aircraft', barmode='overlay', hover_name='General Type', hover_data=['Range', 'Width']).update_xaxes(categoryorder='total ascending')),
                 ], className='eight columns'),
             ]),
             html.Div([
@@ -339,7 +342,8 @@ def update_airline(airline, date_range, tab_selected, selected_type):
             ], className='twelve columns'),
             html.Div([
                 html.Div([
-                    dcc.Graph(figure=px.line(daily_avg_delay, x='FL_DATE', y=['ARR_DELAY', 'DEP_DELAY'], markers=True))
+                    dcc.Graph(figure=px.line(daily_avg_delay, x='FL_DATE', y=['ARR_DELAY', 'DEP_DELAY'], markers=True).add_hline(y=15)),
+                    html.P('A flight is considered on-time when it arrives less than 15 minutes after its published arrival time.')
                 ]),
             ], className='twelve columns')
         ])
