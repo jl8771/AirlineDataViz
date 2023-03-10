@@ -18,9 +18,8 @@ df2 = pd.read_csv('https://jackyluo.s3.amazonaws.com/AircraftData.csv',
                          'Short Range': np.int8, 'Medium Range': np.int8, 'Long Range': np.int8,
                          'Manufacturer': 'category','ICAO Type': 'category', 'General Type': 'category'})
 df3 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Stations.csv',
-                  usecols=['ORIGIN', 'ORIGIN_CITY_NAME', 'ORIGIN_STATE_ABR', 'ORIGIN_STATE_NM', 'NAME',
-                           'LATITUDE', 'LONGITUDE', 'ELEVATION', 'ICAO', 'IATA', 'FAA'],
-                  dtype={'LATITUDE': np.float32, 'LONGITUDE': np.float32, 'ELEVATION': np.float32})
+                  usecols=['AIRPORT', 'DISPLAY_AIRPORT_NAME', 'LATITUDE', 'LONGITUDE', 'ELEVATION', 'ICAO', 'IATA', 'FAA'],
+                  dtype={'LATITUDE': np.float32, 'LONGITUDE': np.float32, 'ELEVATION': np.int16})
 df4 = pd.read_csv('https://jackyluo.s3.amazonaws.com/Carriers.csv', index_col='Code')
     
 #Merge airline data with aircraft data to add aircraft information
@@ -48,12 +47,10 @@ external_stylesheets = ['https://codepen.io/chriddyp/pen/bWLwgP.css']
 app = Dash(__name__, update_title='Loading...', external_stylesheets=external_stylesheets)
 application = app.server
 
-#TODO: Add dcc.loading element to complement title change
 #Set initial layout, including input elements and placeholder divs
 app.layout = html.Div([
     html.Div(id='title-changer'),
     html.Div([
-        html.H1('2022 Bureau of Transportation Statistics Airline Data Visualization', id='header'),
         html.Div([
             html.Div([
                 dcc.Dropdown(op_carriers, placeholder='Select a Carrier', id='main-dropdown'),
@@ -61,7 +58,7 @@ app.layout = html.Div([
             html.Br(),
             html.Div([
                 html.P('Select a Date Range (by month)'),
-                dcc.RangeSlider(1, 11, 1, value=[1,11], id='main-date-selector')
+                dcc.RangeSlider(1, 12, 1, value=[1,12], id='main-date-selector')
             ]),
             html.Br(),
             html.Div([
@@ -81,8 +78,6 @@ app.layout = html.Div([
         html.Div(id='output-wrapper'),
     ], style={'display':'block'})
 ])
-
-#TODO: Add/edit callback for loading
 
 #Callback 1 for disabling tabs until carrier has been selected
 @app.callback(
@@ -248,7 +243,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         #Filter data by unique origin/destination pairs for mapping
         df = df[~df[['ORIGIN', 'DEST']].duplicated(keep='first')]
         #Merge origin/destination pair data with airport names along with longitude/latitude/elevation data
-        df = pd.merge(df, df3, how='inner', left_on='ORIGIN', right_on='ORIGIN')
+        df = pd.merge(df, df3, how='inner', left_on='ORIGIN', right_on='AIRPORT')
         #Merge origin/destination pair data with number of flights from each destination calculated earlier
         df = pd.merge(df, num_flights, how='inner', left_on='ORIGIN', right_on='ORIGIN')
         #Get top 10 airports by number of outgoing flights, should represent hub airports
@@ -279,7 +274,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
             html.Div([
                 html.Div([
                     dcc.Graph(figure=px.scatter_mapbox(df, lat='LATITUDE', lon='LONGITUDE', size='Number of Flights',
-                                                        hover_name='NAME', hover_data=['ELEVATION', 'ICAO', 'FAA', 'IATA'], size_max=75,
+                                                        hover_name='DISPLAY_AIRPORT_NAME', hover_data=['ELEVATION', 'ICAO', 'IATA', 'FAA'], size_max=75,
                                                         zoom=4, mapbox_style='carto-positron'),style={'width': '100%', 'height': '90vh'})
                 ]),
             ], className='twelve columns'),
@@ -345,7 +340,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
                     dcc.Graph(figure=px.line(daily_avg_delay, x='FL_DATE', y=['ARR_DELAY', 'DEP_DELAY'], markers=True).add_hline(y=15)),
                     html.P('A flight is considered on-time when it arrives less than 15 minutes after its published arrival time.')
                 ]),
-            ], className='twelve columns')
+            ], className='twelve columns'),
         ])
     #Return the output div
     return output
