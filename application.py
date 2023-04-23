@@ -63,8 +63,8 @@ app.layout = html.Div([
             html.Br(),
             html.Div([
                 html.P('Select a Type Designator Operating Mode (IATA Type Designators Currently Unavailable)'),
-                dcc.RadioItems(['Aircraft use General Type Designators', 'Aircraft use ICAO Type Designators'],
-                               'Aircraft use General Type Designators', inline=True, id='main-type-selector')
+                dcc.RadioItems(['Aircraft use Plain-Text Type Designators', 'Aircraft use ICAO Type Designators'],
+                               'Aircraft use Plain-Text Type Designators', inline=True, id='main-type-selector')
             ]),
             html.Br(),
             html.Div([
@@ -114,7 +114,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         airline (str): Selected carrier from dropdown input.
         date_range (list of int): Selected date range in months, min and max val from rangeslider input. Default [1,12].
         tab_selected (str): Selected type of data to be shown from tabs input. 
-        selected_type (str): Selected operating mode for aircraft type from radioitems input. Default "General Type".
+        selected_type (str): Selected operating mode for aircraft type from radioitems input. Default "Plain-Text Type".
 
     Returns:
         dash.Html.Div: Wrapper for output. Contains graphs, tables and text.
@@ -142,7 +142,7 @@ def update_airline(airline, date_range, tab_selected, selected_type):
     if tab_selected == 'Aircraft Data':
         #Set operating type based on selected operating type
         op_types = ['General Type', 'ICAO Type']
-        op_type = op_types[0] if selected_type == 'Aircraft use General Type Designators' else op_types[1]
+        op_type = op_types[0] if selected_type == 'Aircraft use Plain-Text Type Designators' else op_types[1]
         #Filter by operating carrier rather than marketing carrier to prevent overlapping fleet information from regional carriers.
         #This also allows the fleet data to be compared to other fleet tracking websites for consistency.
         df = df[df['OP_UNIQUE_CARRIER'] == airline]
@@ -196,19 +196,19 @@ def update_airline(airline, date_range, tab_selected, selected_type):
                     )
                 ], className='four columns'),
                 html.Div([
-                    dcc.Graph(figure=px.bar(df,x=op_type, y='Number of Aircraft', barmode='overlay', hover_name='General Type', hover_data=['Range', 'Width']).update_xaxes(categoryorder='total ascending')),
+                    dcc.Graph(figure=px.bar(df,x=op_type, y='Number of Aircraft', barmode='overlay', hover_name='General Type', hover_data=['Range', 'Width'], title='Fleet by Type').update_xaxes(categoryorder='total ascending')),
                 ], className='eight columns'),
             ]),
             html.Div([
                 html.Div([
                     html.Div([
-                        dcc.Graph(figure=px.pie(df, names='Width', values='Count'))
+                        dcc.Graph(figure=px.pie(df, names='Width', values='Count', title='Fleet by Arrangement').update_traces(textposition='inside', textinfo='percent+label').update_layout(showlegend=False))
                     ], className='four columns'),
                     html.Div([
-                        dcc.Graph(figure=px.pie(df, names='Range', values='Count'))
+                        dcc.Graph(figure=px.pie(df, names='Range', values='Count', title='Fleet by Range').update_traces(textposition='inside', textinfo='percent+label').update_layout(showlegend=False))
                     ], className='four columns'),
                     html.Div([
-                        dcc.Graph(figure=px.pie(df, names='Manufacturer', values='Count'))
+                        dcc.Graph(figure=px.pie(df, names='Manufacturer', values='Count', title='Fleet by Manufacturer').update_traces(textposition='inside', textinfo='percent+label').update_layout(showlegend=False))
                     ], className='four columns'),
                 ]),
             ]),
@@ -292,27 +292,17 @@ def update_airline(airline, date_range, tab_selected, selected_type):
         #Get average arrival delay and departure delay for all routes by the selected carrier
         dep_delay = df['DEP_DELAY'].mean()
         arr_delay = df['ARR_DELAY'].mean()
-        #Get percentage of flights where flights are on time or early (delay <= 15)
-        ontime_arr = df[df['ARR_DELAY'] <= 15].shape[0] / df.shape[0] * 100
-        ontime_dep = df[df['DEP_DELAY'] <= 15].shape[0] / df.shape[0] * 100
-        #Create a list of delay causes
-        delays = []
-        #Sum number of minutes of delay by each cause
-        delay0 = df['CARRIER_DELAY'].sum()
-        delay1 = df['WEATHER_DELAY'].sum()
-        delay2 = df['NAS_DELAY'].sum()
-        delay3 = df['SECURITY_DELAY'].sum()
-        delay4 = df['LATE_AIRCRAFT_DELAY'].sum()
-        #Sum total delay by carrier
-        total_delay = delay0 + delay1 + delay2 + delay3 + delay4
-        #Append each cause to list as tuple along with number of minutes of delay, and percentage of total delay
-        delays.append((delay0, delay0 / total_delay * 100, 'Carrier'))
-        delays.append((delay1, delay1 / total_delay * 100, 'Weather'))
-        delays.append((delay2, delay2 / total_delay * 100, 'National Air System'))
-        delays.append((delay3, delay3 / total_delay * 100, 'Security'))
-        delays.append((delay4, delay4 / total_delay * 100, 'Late Aircraft'))
-        #Sort list by number of minutes of delay, descending
-        delays.sort(key=lambda x: x[0], reverse=True)
+        #Find biggest contributor to delay and format
+        df['Delay Cause'] = df[['CARRIER_DELAY', 'WEATHER_DELAY', 'NAS_DELAY', 'SECURITY_DELAY', 'LATE_AIRCRAFT_DELAY']].idxmax(axis=1)
+        df['Delay Cause'] = df['Delay Cause'].str.replace('_', ' ', n=-1, regex='False')
+        df['Delay Cause'] = df['Delay Cause'].str.title()
+        #Find delay amount
+        df['Delay Amount'] = df[['CARRIER_DELAY', 'WEATHER_DELAY', 'NAS_DELAY', 'SECURITY_DELAY', 'LATE_AIRCRAFT_DELAY']].max(axis=1)
+        #Find percentage of flights that arrive on time (<15 min delay)
+        df['Arrival Case'] = df.apply(lambda x: 'On Time' if x['ARR_DELAY'] < 15 else 'Late', axis=1)
+        df['Count'] = 1
+        
+        total_delay = df['CARRIER_DELAY'].sum() + df['WEATHER_DELAY'].sum() + df['NAS_DELAY'].sum() + df['SECURITY_DELAY'].sum() + df['LATE_AIRCRAFT_DELAY'].sum()
         
         #TODO: Reformat text elements to be table-like with descriptive text as small header, numerical value as large table element for cleaner look
         #Create output element, including text and plots. Use class names to fix element widths based on stylesheet
@@ -323,17 +313,15 @@ def update_airline(airline, date_range, tab_selected, selected_type):
                     html.H5(f'Number of Cancelled Flights: {cancellations} ({cancellations/df.shape[0]*100:.2f}%)'),
                     html.H5(f'Average Arrival Delay: {arr_delay:.0f} min'),
                     html.H5(f'Average Departure Delay: {dep_delay:.0f} min'),
-                    html.H5(f'Percentage of Flights Arriving Early/On-Time: {ontime_arr:.2f}%'),
-                    html.H5(f'Percentage of Flights Departing Early/On-Time: {ontime_dep:.2f}%'),
-                ],className='six columns'),
-                html.Div([
+                    html.H5(f'Total Delay: {total_delay} m'),
                     html.H5(f'Total Delay: {convert_time(total_delay)}'),
-                    html.H5(f'Total Delay Caused by {delays[0][2]}: {convert_time(delays[0][0])} ({delays[0][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[1][2]}: {convert_time(delays[1][0])} ({delays[1][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[2][2]}: {convert_time(delays[2][0])} ({delays[2][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[3][2]}: {convert_time(delays[3][0])} ({delays[3][1]:.2f}% of delays)'),
-                    html.H5(f'Total Delay Caused by {delays[4][2]}: {convert_time(delays[4][0])} ({delays[4][1]:.2f}% of delays)'),
-                ], className='six columns'),
+                ],className='four columns'),
+                html.Div([
+                    dcc.Graph(figure=px.pie(df, names='Arrival Case', values='Count', title='On-Time Flights Breakdown').update_traces(textposition='inside', textinfo='percent+label').update_layout(showlegend=False)),
+                ], className='four columns'),
+                html.Div([
+                    dcc.Graph(figure=px.bar(df.groupby(['Delay Cause'])['Delay Amount'].sum().to_frame().reset_index(), x='Delay Cause', y='Delay Amount', title='Arrival Delay Breakdown')),
+                ], className='four columns'),
             ], className='twelve columns'),
             html.Div([
                 html.Div([
